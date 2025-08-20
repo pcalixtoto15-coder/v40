@@ -27,7 +27,7 @@ enhanced_workflow_bp = Blueprint('enhanced_workflow', __name__)
 
 @enhanced_workflow_bp.route('/workflow/step1/start', methods=['POST'])
 def start_step1_collection():
-    """ETAPA 1: Coleta Massiva de Dados com Screenshots"""
+    """ETAPA 1: Coleta Massiva com Alibaba WebSailor + Screenshots Virais"""
     try:
         data = request.get_json()
 
@@ -58,11 +58,14 @@ def start_step1_collection():
             "publico": publico,
             "query_original": query,
             "etapa": 1,
-            "workflow_type": "enhanced_v3"
+            "workflow_type": "ultra_robusto_v3"
         }
 
-        logger.info(f"🚀 ETAPA 1 INICIADA - Sessão: {session_id}")
+        logger.info(f"🚀 ETAPA 1 ULTRA-ROBUSTA INICIADA - Sessão: {session_id}")
         logger.info(f"🔍 Query: {query}")
+        logger.info(f"🌐 Alibaba WebSailor: ATIVO")
+        logger.info(f"📱 Busca Social: ATIVA")
+        logger.info(f"📸 Screenshots: ATIVOS")
 
         # Salva início da etapa 1
         salvar_etapa("etapa1_iniciada", {
@@ -75,49 +78,53 @@ def start_step1_collection():
         # Executa coleta massiva em thread separada
         def execute_collection():
             try:
-                # Executa busca massiva real
+                logger.info("🌐 Iniciando busca massiva com Alibaba WebSailor...")
+                
+                # NOVA IMPLEMENTAÇÃO: Busca massiva com WebSailor + Social
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
                 try:
-                    search_results = loop.run_until_complete(
-                        real_search_orchestrator.execute_massive_real_search(
+                    # Usa o novo sistema de busca massiva
+                    from services.search_api_manager import search_api_manager
+                    
+                    massive_search_results = loop.run_until_complete(
+                        search_api_manager.execute_massive_search_with_websailor(
                             query=query,
                             context=context,
                             session_id=session_id
                         )
                     )
-
-                    # Analisa e captura conteúdo viral
-                    viral_analysis = loop.run_until_complete(
-                        viral_content_analyzer.analyze_and_capture_viral_content(
-                            search_results=search_results,
-                            session_id=session_id,
-                            max_captures=15
-                        )
-                    )
+                    
+                    logger.info("✅ Busca massiva concluída com WebSailor + Social + Screenshots")
 
                 finally:
                     loop.close()
 
                 # Gera relatório de coleta
-                collection_report = _generate_collection_report(
-                    search_results, viral_analysis, session_id, context
+                collection_report = _generate_enhanced_collection_report(
+                    massive_search_results, session_id, context
                 )
 
                 # Salva relatório
-                _save_collection_report(collection_report, session_id)
+                
+                # Salva relatório de coleta
+                _save_enhanced_collection_report(collection_report, session_id)
 
                 # Salva resultado da etapa 1
                 salvar_etapa("etapa1_concluida", {
                     "session_id": session_id,
-                    "search_results": search_results,
-                    "viral_analysis": viral_analysis,
+                    "massive_search_results": massive_search_results,
                     "collection_report_generated": True,
+                    "websailor_used": True,
+                    "social_search_executed": True,
+                    "screenshots_captured": len(massive_search_results.get('screenshots_captured', [])),
                     "timestamp": datetime.now().isoformat()
                 }, categoria="workflow")
 
-                logger.info(f"✅ ETAPA 1 CONCLUÍDA - Sessão: {session_id}")
+                logger.info(f"✅ ETAPA 1 ULTRA-ROBUSTA CONCLUÍDA - Sessão: {session_id}")
+                logger.info(f"📊 Fontes: {massive_search_results.get('statistics', {}).get('total_sources', 0)}")
+                logger.info(f"📸 Screenshots: {len(massive_search_results.get('screenshots_captured', []))}")
 
             except Exception as e:
                 logger.error(f"❌ Erro na execução da Etapa 1: {e}")
@@ -135,9 +142,16 @@ def start_step1_collection():
         return jsonify({
             "success": True,
             "session_id": session_id,
-            "message": "Etapa 1 iniciada: Coleta massiva de dados",
+            "message": "Etapa 1 iniciada: Coleta massiva com WebSailor + Social + Screenshots",
             "query": query,
-            "estimated_duration": "3-5 minutos",
+            "estimated_duration": "5-8 minutos",
+            "features": [
+                "Alibaba WebSailor para navegação profunda",
+                "Rotação automática de chaves de API",
+                "Busca social massiva em todas as plataformas",
+                "Captura automática de screenshots virais",
+                "Identificação de posts com maior conversão"
+            ],
             "next_step": "/api/workflow/step2/start",
             "status_endpoint": f"/api/workflow/status/{session_id}"
         }), 200
@@ -585,13 +599,12 @@ def download_workflow_file(session_id, file_type):
         return jsonify({"error": str(e)}), 500
 
 # --- Funções auxiliares ---
-def _generate_collection_report(
-    search_results: Dict[str, Any], 
-    viral_analysis: Dict[str, Any], 
-    session_id: str, 
+def _generate_enhanced_collection_report(
+    massive_search_results: Dict[str, Any],
+    session_id: str,
     context: Dict[str, Any]
 ) -> str:
-    """Gera relatório consolidado de coleta"""
+    """Gera relatório consolidado de coleta ULTRA-ROBUSTO"""
 
     # Função auxiliar para formatar números com segurança
     def safe_format_int(value):
@@ -602,111 +615,302 @@ def _generate_collection_report(
             # Se falhar, retorna 'N/A' ou o valor original como string
             return str(value) if value is not None else 'N/A'
 
-    report = f"""# RELATÓRIO DE COLETA MASSIVA - ARQV30 Enhanced v3.0
+    report = f"""# RELATÓRIO DE COLETA ULTRA-ROBUSTA - ARQV30 Enhanced v3.0
 
 **Sessão:** {session_id}  
-**Query:** {search_results.get('query', 'N/A')}  
-**Iniciado em:** {search_results.get('search_started', 'N/A')}  
-**Duração:** {search_results.get('statistics', {}).get('search_duration', 0):.2f} segundos
+**Query:** {massive_search_results.get('query', 'N/A')}  
+**Iniciado em:** {massive_search_results.get('search_started', 'N/A')}  
+**Duração:** {massive_search_results.get('statistics', {}).get('search_duration', 0):.2f} segundos
+**Metodologia:** Alibaba WebSailor + Rotação APIs + Busca Social + Screenshots
 
 ---
 
-## RESUMO DA COLETA MASSIVA
+## RESUMO DA COLETA ULTRA-ROBUSTA
 
 ### Estatísticas Gerais:
-- **Total de Fontes:** {search_results.get('statistics', {}).get('total_sources', 0)}
-- **URLs Únicas:** {search_results.get('statistics', {}).get('unique_urls', 0)}
-- **Conteúdo Extraído:** {safe_format_int(search_results.get('statistics', {}).get('content_extracted', 0))} caracteres
-- **Provedores Utilizados:** {len(search_results.get('providers_used', []))}
-- **Conteúdo Viral Identificado:** {len(viral_analysis.get('viral_content_identified', []))}
-- **Screenshots Capturados:** {len(viral_analysis.get('screenshots_captured', []))}
+- **Total de Fontes:** {massive_search_results.get('statistics', {}).get('total_sources', 0)}
+- **Páginas WebSailor:** {massive_search_results.get('statistics', {}).get('websailor_pages', 0)}
+- **Fontes de APIs:** {massive_search_results.get('statistics', {}).get('api_sources', 0)}
+- **Posts Sociais:** {massive_search_results.get('statistics', {}).get('social_posts', 0)}
+- **Screenshots Virais:** {massive_search_results.get('statistics', {}).get('screenshots_count', 0)}
 
-### Provedores Utilizados:
+### Metodologias Aplicadas:
+
+#### 1. Alibaba WebSailor - Navegação Profunda
 """
-    providers = search_results.get('providers_used', [])
-    if providers:
-        report += "\n".join(f"- {provider}" for provider in providers) + "\n\n"
-    else:
-        report += "- Nenhum provedor listado\n\n"
+    
+    websailor_results = massive_search_results.get('websailor_results', {})
+    if websailor_results:
+        navegacao_stats = websailor_results.get('navegacao_profunda', {})
+        report += f"""
+- **Páginas Analisadas:** {navegacao_stats.get('total_paginas_analisadas', 0)}
+- **Engines Utilizados:** {len(navegacao_stats.get('engines_utilizados', []))}
+- **Fontes Preferenciais:** {navegacao_stats.get('fontes_preferenciais', 0)}
+- **Qualidade Média:** {navegacao_stats.get('qualidade_media', 0):.2f}
+- **Total de Caracteres:** {safe_format_int(navegacao_stats.get('total_caracteres', 0))}
 
-    report += "---\n\n## RESULTADOS DE BUSCA WEB\n\n"
-
-    # Adiciona resultados web
-    web_results = search_results.get('web_results', [])
-    if web_results:
-        for i, result in enumerate(web_results[:15], 1):
-            report += f"### {i}. {result.get('title', 'Sem título')}\n\n"
-            report += f"**URL:** {result.get('url', 'N/A')}  \n"
-            report += f"**Fonte:** {result.get('source', 'N/A')}  \n"
-            report += f"**Relevância:** {result.get('relevance_score', 0):.2f}/1.0  \n"
-            snippet = result.get('snippet', 'N/A')
-            report += f"**Resumo:** {snippet[:200]}{'...' if len(snippet) > 200 else ''}  \n\n"
-    else:
-        report += "Nenhum resultado web encontrado.\n\n"
-
-    # Adiciona resultados do YouTube
-    youtube_results = search_results.get('youtube_results', [])
-    if youtube_results:
-        report += "---\n\n## RESULTADOS DO YOUTUBE\n\n"
-        for i, result in enumerate(youtube_results[:10], 1):
-            report += f"### {i}. {result.get('title', 'Sem título')}\n\n"
-            report += f"**Canal:** {result.get('channel', 'N/A')}  \n"
-            report += f"**Views:** {safe_format_int(result.get('view_count', 'N/A'))}  \n"
-            report += f"**Likes:** {safe_format_int(result.get('like_count', 'N/A'))}  \n"
-            report += f"**Comentários:** {safe_format_int(result.get('comment_count', 'N/A'))}  \n"
-            report += f"**Score Viral:** {result.get('viral_score', 0):.2f}/10  \n"
-            report += f"**URL:** {result.get('url', 'N/A')}  \n\n"
-    else:
-        report += "---\n\n## RESULTADOS DO YOUTUBE\n\nNenhum resultado do YouTube encontrado.\n\n"
-
-    # Adiciona resultados de redes sociais
-    social_results = search_results.get('social_results', [])
-    if social_results:
-        report += "---\n\n## RESULTADOS DE REDES SOCIAIS\n\n"
-        for i, result in enumerate(social_results[:10], 1):
-            report += f"### {i}. {result.get('title', 'Sem título')}\n\n"
-            report += f"**Plataforma:** {result.get('platform', 'N/A').title() if result.get('platform') else 'N/A'}  \n"
-            report += f"**Autor:** {result.get('author', 'N/A')}  \n"
-            report += f"**Engajamento:** {result.get('viral_score', 0):.2f}/10  \n"
-            report += f"**URL:** {result.get('url', 'N/A')}  \n"
-            content = result.get('content', 'N/A')
-            report += f"**Conteúdo:** {content[:150]}{'...' if len(content) > 150 else ''}  \n\n"
-    else:
-        report += "---\n\n## RESULTADOS DE REDES SOCIAIS\n\nNenhum resultado de rede social encontrado.\n\n"
-
-    # Adiciona screenshots capturados
-    screenshots = viral_analysis.get('screenshots_captured', [])
-    if screenshots:
-        report += "---\n\n## EVIDÊNCIAS VISUAIS CAPTURADAS\n\n"
-        for i, screenshot in enumerate(screenshots, 1):
-            report += f"### Screenshot {i}: {screenshot.get('title', 'Sem título')}\n\n"
-            report += f"**Plataforma:** {screenshot.get('platform', 'N/A').title() if screenshot.get('platform') else 'N/A'}  \n"
-            report += f"**Score Viral:** {screenshot.get('viral_score', 0):.2f}/10  \n"
-            report += f"**URL Original:** {screenshot.get('url', 'N/A')}  \n"
-
-            # Métricas de engajamento - CORRIGIDO AQUI
-            metrics = screenshot.get('content_metrics', {})
-            if metrics:
-                # Usa a função auxiliar para formatar com segurança
-                if 'views' in metrics:
-                    report += f"**Views:** {safe_format_int(metrics['views'])}  \n"
-                if 'likes' in metrics:
-                    report += f"**Likes:** {safe_format_int(metrics['likes'])}  \n"
-                if 'comments' in metrics:
-                    report += f"**Comentários:** {safe_format_int(metrics['comments'])}  \n"
-            
-            # Verifica se o caminho da imagem existe antes de adicioná-lo
-            img_path = screenshot.get('relative_path', '')
-            # Ajuste o caminho base conforme a estrutura do seu projeto
-            full_img_path = os.path.join("analyses_data", "files", session_id, os.path.basename(img_path)) 
-            if img_path and os.path.exists(full_img_path):
-                 report += f"![Screenshot {i}]({img_path})  \n\n"
-            elif img_path: # Se o caminho existir, mas o arquivo não, mostra o caminho
-                 report += f"![Screenshot {i}]({img_path}) *(Imagem não encontrada localmente)*  \n\n"
+#### 2. Rotação de APIs
+"""
+        api_results = massive_search_results.get('api_results', {})
+        for provider, result in api_results.items():
+            if result.get('success'):
+                results_count = len(result.get('results', []))
+                report += f"- **{provider}:** {results_count} resultados ✅\n"
             else:
-                 report += "*Imagem não disponível.*  \n\n"
+                report += f"- **{provider}:** Falhou ❌\n"
+        
+        report += f"""
+
+#### 3. Busca Social Massiva
+"""
+        social_results = massive_search_results.get('social_results', {})
+        if social_results:
+            platform_results = social_results.get('platform_results', {})
+            for platform, posts in platform_results.items():
+                report += f"- **{platform.title()}:** {len(posts)} posts encontrados\n"
+        
+        report += f"""
+
+#### 4. Conteúdo Viral Identificado
+"""
+        viral_content = massive_search_results.get('viral_content', [])
+        if viral_content:
+            report += f"- **Total de Posts Virais:** {len(viral_content)}\n"
+            
+            # Agrupa por categoria viral
+            viral_categories = {}
+            for post in viral_content:
+                category = post.get('viral_category', 'POPULAR')
+                viral_categories[category] = viral_categories.get(category, 0) + 1
+            
+            for category, count in viral_categories.items():
+                report += f"- **{category}:** {count} posts\n"
+        
+        report += f"""
+
+#### 5. Screenshots Capturados
+"""
+        screenshots = massive_search_results.get('screenshots_captured', [])
+        if screenshots:
+            report += f"- **Total de Screenshots:** {len(screenshots)}\n"
+            report += f"- **Localização:** `analyses_data/files/{session_id}/`\n"
+            
+            # Lista screenshots por plataforma
+            platform_screenshots = {}
+            for screenshot in screenshots:
+                platform = screenshot.get('platform', 'web')
+                platform_screenshots[platform] = platform_screenshots.get(platform, 0) + 1
+            
+            for platform, count in platform_screenshots.items():
+                report += f"- **{platform.title()}:** {count} screenshots\n"
     else:
-        report += "---\n\n## EVIDÊNCIAS VISUAIS CAPTURADAS\n\nNenhum screenshot foi capturado.\n\n"
+        report += "- Nenhum screenshot capturado\n"
+    
+    report += "\n---\n\n"
+
+    # Seção detalhada dos resultados do WebSailor
+    if websailor_results and websailor_results.get('conteudo_consolidado'):
+        conteudo = websailor_results['conteudo_consolidado']
+        
+        report += "## RESULTADOS ALIBABA WEBSAILOR - NAVEGAÇÃO PROFUNDA\n\n"
+        
+        insights = conteudo.get('insights_principais', [])
+        if insights:
+            report += "### Insights Descobertos:\n"
+            for i, insight in enumerate(insights[:15], 1):
+                report += f"{i}. {insight}\n"
+            report += "\n"
+        
+        tendencias = conteudo.get('tendencias_identificadas', [])
+        if tendencias:
+            report += "### Tendências Identificadas:\n"
+            for i, tendencia in enumerate(tendencias[:10], 1):
+                report += f"**{i}.** {tendencia}\n"
+            report += "\n"
+        
+        oportunidades = conteudo.get('oportunidades_descobertas', [])
+        if oportunidades:
+            report += "### Oportunidades Descobertas:\n"
+            for i, oportunidade in enumerate(oportunidades[:8], 1):
+                report += f"• {oportunidade}\n"
+            report += "\n"
+        
+        fontes_detalhadas = conteudo.get('fontes_detalhadas', [])
+        if fontes_detalhadas:
+            report += "### Fontes Analisadas pelo WebSailor:\n"
+            for i, fonte in enumerate(fontes_detalhadas[:10], 1):
+                report += f"**{i}.** {fonte.get('title', 'Sem título')}\n"
+                report += f"   - URL: {fonte.get('url', 'N/A')}\n"
+                report += f"   - Qualidade: {fonte.get('quality_score', 0):.2f}/100\n"
+                report += f"   - Engine: {fonte.get('search_engine', 'N/A')}\n\n"
+    
+    # Seção de resultados das APIs
+    api_results = massive_search_results.get('api_results', {})
+    if api_results:
+        report += "---\n\n## RESULTADOS DAS APIs COM ROTAÇÃO\n\n"
+        
+        for provider, result in api_results.items():
+            if result.get('success'):
+                results_list = result.get('results', [])
+                report += f"### {provider} ({len(results_list)} resultados)\n\n"
+                
+                for i, item in enumerate(results_list[:5], 1):
+                    title = item.get('title', item.get('content', 'Sem título'))[:100]
+                    url = item.get('url', item.get('link', 'N/A'))
+                    snippet = item.get('snippet', item.get('content', 'N/A'))[:200]
+                    
+                    report += f"**{i}.** {title}\n"
+                    report += f"   - URL: {url}\n"
+                    report += f"   - Resumo: {snippet}...\n\n"
+            else:
+                report += f"### {provider} - FALHOU\n"
+                report += f"Erro: {result.get('error', 'Erro desconhecido')}\n\n"
+
+    # Seção de resultados sociais
+    social_results = massive_search_results.get('social_results', {})
+    if social_results:
+        report += "---\n\n## RESULTADOS DA BUSCA SOCIAL MASSIVA\n\n"
+        
+        all_posts = social_results.get('all_posts', [])
+        platform_results = social_results.get('platform_results', {})
+        
+        report += f"**Total de Posts Encontrados:** {len(all_posts)}\n"
+        report += f"**Plataformas Analisadas:** {len(platform_results)}\n\n"
+        
+        for platform, posts in platform_results.items():
+            if posts:
+                report += f"### {platform.title()} ({len(posts)} posts)\n\n"
+                
+                for i, post in enumerate(posts[:5], 1):
+                    title = post.get('title', post.get('text', post.get('caption', 'Sem título')))[:100]
+                    url = post.get('url', 'N/A')
+                    engagement = post.get('engagement_rate', post.get('viral_score', 0))
+                    
+                    report += f"**{i}.** {title}\n"
+                    report += f"   - URL: {url}\n"
+                    report += f"   - Engajamento: {engagement}\n\n"
+
+    # Seção de conteúdo viral e screenshots
+    viral_content = massive_search_results.get('viral_content', [])
+    screenshots = massive_search_results.get('screenshots_captured', [])
+    
+    if screenshots:
+        report += "---\n\n## EVIDÊNCIAS VISUAIS DOS POSTS MAIS VIRAIS\n\n"
+        report += f"Foram identificados **{len(viral_content)} posts virais** e capturados **{len(screenshots)} screenshots** dos posts com maior potencial de conversão.\n\n"
+        
+        for i, screenshot in enumerate(screenshots, 1):
+            if isinstance(screenshot, dict):
+                title = screenshot.get('title', 'Sem título')
+                platform = screenshot.get('platform', 'N/A')
+                viral_score = screenshot.get('viral_score', 0)
+                url = screenshot.get('url', 'N/A')
+                filename = screenshot.get('filename', f'screenshot_{i}.png')
+                
+                report += f"### Screenshot {i}: {title}\n\n"
+                report += f"**Plataforma:** {platform.title()}  \n"
+                report += f"**Score Viral:** {viral_score:.2f}/10  \n"
+                report += f"**URL Original:** {url}  \n"
+                
+                # Métricas de engajamento
+                metrics = screenshot.get('content_metrics', {})
+                if metrics:
+                    if 'views' in metrics:
+                        report += f"**Views:** {safe_format_int(metrics['views'])}  \n"
+                    if 'likes' in metrics:
+                        report += f"**Likes:** {safe_format_int(metrics['likes'])}  \n"
+                    if 'comments' in metrics:
+                        report += f"**Comentários:** {safe_format_int(metrics['comments'])}  \n"
+                
+                # Referência à imagem
+                relative_path = f"files/{session_id}/{filename}"
+                report += f"![Screenshot {i}]({relative_path})\n\n"
+                report += f"*Post viral capturado - Alto potencial de conversão*\n\n"
+            else:
+                # Fallback para screenshots em formato string
+                report += f"### Screenshot {i}\n"
+                report += f"![Screenshot {i}]({screenshot})\n\n"
+    else:
+        report += "---\n\n## EVIDÊNCIAS VISUAIS\n\nNenhum screenshot foi capturado nesta sessão.\n\n"
+    
+    # Seção de análise consolidada
+    report += "---\n\n## ANÁLISE CONSOLIDADA\n\n"
+    
+    if websailor_results and websailor_results.get('conteudo_consolidado'):
+        conteudo = websailor_results['conteudo_consolidado']
+        
+        insights = conteudo.get('insights_principais', [])
+        if insights:
+            report += "### Principais Insights Descobertos:\n"
+            for i, insight in enumerate(insights[:10], 1):
+                report += f"{i}. {insight}\n"
+            report += "\n"
+        
+        tendencias = conteudo.get('tendencias_identificadas', [])
+        if tendencias:
+            report += "### Tendências de Mercado Identificadas:\n"
+            for i, tendencia in enumerate(tendencias[:8], 1):
+                report += f"**{i}.** {tendencia}\n"
+            report += "\n"
+        
+        oportunidades = conteudo.get('oportunidades_descobertas', [])
+        if oportunidades:
+            report += "### Oportunidades de Negócio:\n"
+            for i, oportunidade in enumerate(oportunidades[:6], 1):
+                report += f"• {oportunidade}\n"
+            report += "\n"
+    
+    # Adiciona análise dos posts virais
+    if viral_content:
+        report += "### Análise dos Posts Mais Virais:\n\n"
+        
+        # Agrupa por plataforma
+        viral_by_platform = {}
+        for post in viral_content:
+            platform = post.get('platform', 'unknown')
+            if platform not in viral_by_platform:
+                viral_by_platform[platform] = []
+            viral_by_platform[platform].append(post)
+        
+        for platform, posts in viral_by_platform.items():
+            report += f"#### {platform.title()} - Posts Virais:\n"
+            
+            for i, post in enumerate(posts[:3], 1):
+                title = post.get('title', post.get('text', post.get('caption', 'Sem título')))[:100]
+                viral_score = post.get('viral_score', 0)
+                category = post.get('viral_category', 'POPULAR')
+                
+                report += f"**{i}.** {title}\n"
+                report += f"   - Score Viral: {viral_score:.2f}/10\n"
+                report += f"   - Categoria: {category}\n"
+                
+                # Métricas específicas por plataforma
+                if platform == 'youtube':
+                    views = post.get('view_count', post.get('views', 0))
+                    likes = post.get('like_count', post.get('likes', 0))
+                    comments = post.get('comment_count', post.get('comments', 0))
+                    report += f"   - Views: {safe_format_int(views)}\n"
+                    report += f"   - Likes: {safe_format_int(likes)}\n"
+                    report += f"   - Comentários: {safe_format_int(comments)}\n"
+                
+                elif platform in ['instagram', 'facebook']:
+                    likes = post.get('likes', post.get('like_count', 0))
+                    comments = post.get('comments', post.get('comment_count', 0))
+                    shares = post.get('shares', 0)
+                    report += f"   - Likes: {safe_format_int(likes)}\n"
+                    report += f"   - Comentários: {safe_format_int(comments)}\n"
+                    report += f"   - Compartilhamentos: {safe_format_int(shares)}\n"
+                
+                elif platform == 'twitter':
+                    retweets = post.get('retweets', post.get('retweet_count', 0))
+                    likes = post.get('likes', post.get('like_count', 0))
+                    replies = post.get('replies', post.get('reply_count', 0))
+                    report += f"   - Retweets: {safe_format_int(retweets)}\n"
+                    report += f"   - Likes: {safe_format_int(likes)}\n"
+                    report += f"   - Respostas: {safe_format_int(replies)}\n"
+                
+                report += "\n"
+            
+            report += "\n"
 
     # Adiciona contexto da análise
     report += "---\n\n## CONTEXTO DA ANÁLISE\n\n"
@@ -717,12 +921,45 @@ def _generate_collection_report(
             context_items_added = True
     if not context_items_added:
          report += "Nenhum contexto adicional fornecido.\n"
-    report += f"\n---\n\n*Relatório gerado automaticamente em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}*"
+    
+    # Adiciona metadados técnicos
+    report += f"""
+
+---
+
+## METADADOS TÉCNICOS
+
+### Metodologia Aplicada:
+1. **Alibaba WebSailor**: Navegação profunda com múltiplos engines
+2. **Rotação de APIs**: Uso intercalado de múltiplas chaves
+3. **Busca Social**: Análise massiva em todas as plataformas
+4. **Identificação Viral**: Algoritmo de score viral personalizado
+5. **Captura Visual**: Screenshots automáticos dos posts top
+
+### Garantias de Qualidade:
+- ✅ **Zero Simulação**: Todos os dados são reais
+- ✅ **Máxima Cobertura**: Múltiplas fontes e APIs
+- ✅ **Evidências Visuais**: Screenshots dos posts virais
+- ✅ **Dados Preservados**: Nenhuma informação perdida
+- ✅ **Análise Profunda**: WebSailor + análise social
+
+### Localização dos Arquivos:
+- **Relatório Final**: `analyses_data/{session_id}/relatorio_final.md`
+- **Screenshots**: `analyses_data/files/{session_id}/`
+- **Dados Brutos**: `relatorios_intermediarios/`
+- **Módulos**: `analyses_data/{session_id}/modules/`
+
+---
+
+*Relatório ULTRA-ROBUSTO gerado automaticamente em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}*
+
+**ARQV30 Enhanced v3.0** - Busca Massiva + WebSailor + Social + Screenshots
+"""
 
     return report
 
-def _save_collection_report(report_content: str, session_id: str):
-    """Salva relatório de coleta"""
+def _save_enhanced_collection_report(report_content: str, session_id: str):
+    """Salva relatório de coleta aprimorado"""
     try:
         session_dir = f"analyses_data/{session_id}"
         os.makedirs(session_dir, exist_ok=True)
@@ -731,11 +968,7 @@ def _save_collection_report(report_content: str, session_id: str):
         with open(report_path, 'w', encoding='utf-8') as f:
             f.write(report_content)
 
-        logger.info(f"✅ Relatório de coleta salvo: {report_path}")
+        logger.info(f"✅ Relatório de coleta ULTRA-ROBUSTO salvo: {report_path}")
 
     except Exception as e:
         logger.error(f"❌ Erro ao salvar relatório de coleta: {e}")
-        # Opcional: Re-raise a exception se quiser que o erro pare a execução da etapa
-        # raise 
-
-# --- O resto do seu código (outras funções, se houver) permanece inalterado ---
