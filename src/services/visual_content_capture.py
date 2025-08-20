@@ -1,9 +1,8 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ARQV30 Enhanced v3.0 - Visual Content Capture
-Captura de screenshots e conteúdo visual usando Selenium
+ARQV30 Enhanced v3.0 - Visual Content Capture CORRIGIDO
+Sistema de captura de screenshots de posts de redes sociais com maior conversão
 """
 
 import os
@@ -23,67 +22,45 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
 class VisualContentCapture:
-    """Capturador de conteúdo visual usando Selenium"""
+    """Sistema de captura de screenshots CORRIGIDO para posts virais"""
 
     def __init__(self):
         """Inicializa o capturador visual"""
         self.driver = None
-        self.wait_timeout = 10
-        self.page_load_timeout = 30
+        self.wait_timeout = 15
+        self.page_load_timeout = 45
+        self.screenshots_base_dir = "analyses_data/files"
         
-        logger.info("📸 Visual Content Capture inicializado")
+        logger.info("📸 Visual Content Capture CORRIGIDO inicializado")
 
     def _setup_driver(self) -> webdriver.Chrome:
-        """Configura o driver do Chrome em modo headless"""
+        """Configura o driver do Chrome otimizado para captura"""
         try:
             chrome_options = Options()
             
-            # Configurações para modo headless e otimização no Replit
+            # Configurações otimizadas para captura de redes sociais
             chrome_options.add_argument("--headless")
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--disable-web-security")
-            chrome_options.add_argument("--disable-features=VizDisplayCompositor")
-            chrome_options.add_argument("--remote-debugging-port=9222")
             chrome_options.add_argument("--window-size=1920,1080")
             chrome_options.add_argument("--disable-extensions")
             chrome_options.add_argument("--disable-plugins")
-            chrome_options.add_argument("--disable-images")  # Para economizar banda
-            chrome_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36")
+            # NÃO desabilitar imagens e JS para redes sociais
+            chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             
-            # Usa selenium_checker para configuração robusta
-            from .selenium_checker import selenium_checker
+            # Instala automaticamente o ChromeDriver
+            service = Service(ChromeDriverManager().install())
             
-            # Executa verificação completa
-            check_results = selenium_checker.full_check()
-            
-            if not check_results['selenium_ready']:
-                raise Exception("Selenium não está configurado corretamente")
-            
-            # Configura o Chrome com o melhor caminho encontrado
-            best_chrome_path = check_results['best_chrome_path']
-            if best_chrome_path:
-                chrome_options.binary_location = best_chrome_path
-                logger.info(f"✅ Chrome configurado: {best_chrome_path}")
-            
-            # Tenta usar ChromeDriverManager primeiro
-            try:
-                service = Service(ChromeDriverManager().install())
-                driver = webdriver.Chrome(service=service, options=chrome_options)
-                logger.info("✅ ChromeDriverManager funcionou")
-            except Exception as e:
-                logger.warning(f"⚠️ ChromeDriverManager falhou: {e}, usando chromedriver do sistema")
-                # Fallback para chromedriver do sistema
-                driver = webdriver.Chrome(options=chrome_options)
-            
+            driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.set_page_load_timeout(self.page_load_timeout)
             
-            logger.info("✅ Chrome driver configurado com sucesso")
+            logger.info("✅ Chrome driver configurado para captura de redes sociais")
             return driver
             
         except Exception as e:
@@ -93,7 +70,7 @@ class VisualContentCapture:
     def _create_session_directory(self, session_id: str) -> Path:
         """Cria diretório para a sessão"""
         try:
-            session_dir = Path("analyses_data") / "files" / session_id
+            session_dir = Path(self.screenshots_base_dir) / session_id
             session_dir.mkdir(parents=True, exist_ok=True)
             
             logger.info(f"📁 Diretório criado: {session_dir}")
@@ -103,89 +80,133 @@ class VisualContentCapture:
             logger.error(f"❌ Erro ao criar diretório: {e}")
             raise
 
-    def _take_screenshot(self, url: str, filename: str, session_dir: Path) -> Dict[str, Any]:
-        """Captura screenshot de uma URL específica"""
+    def _optimize_screenshot(self, filepath: str):
+        """Otimiza screenshot para melhor qualidade e tamanho"""
         try:
-            logger.info(f"📸 Capturando screenshot: {url}")
+            with Image.open(filepath) as img:
+                # Converte para RGB se necessário
+                if img.mode in ('RGBA', 'LA', 'P'):
+                    img = img.convert('RGB')
+                
+                # Redimensiona se muito grande
+                max_width = 1920
+                max_height = 1080
+                
+                if img.width > max_width or img.height > max_height:
+                    img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+                
+                # Salva otimizado
+                img.save(filepath, 'PNG', optimize=True, quality=85)
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao otimizar screenshot {filepath}: {e}")
+
+    def _capture_social_media_post(self, url: str, platform: str, session_dir: Path, index: int) -> Dict[str, Any]:
+        """Captura screenshot específico para posts de redes sociais"""
+        try:
+            logger.info(f"📱 Capturando post {platform}: {url}")
+            
+            # Configurações específicas por plataforma
+            if platform.lower() == 'instagram':
+                self.driver.set_window_size(414, 896)  # Mobile size
+            elif platform.lower() == 'twitter':
+                self.driver.set_window_size(1200, 800)
+            elif platform.lower() == 'linkedin':
+                self.driver.set_window_size(1200, 900)
+            elif platform.lower() == 'youtube':
+                self.driver.set_window_size(1280, 720)
+            else:
+                self.driver.set_window_size(1920, 1080)
             
             # Acessa a URL
             self.driver.get(url)
             
-            # Aguarda o carregamento da página
-            try:
-                WebDriverWait(self.driver, self.wait_timeout).until(
-                    EC.presence_of_element_located((By.TAG_NAME, "body"))
-                )
-            except TimeoutException:
-                logger.warning(f"⚠️ Timeout aguardando carregamento de {url}")
+            # Aguarda carregamento específico por plataforma
+            wait_time = 8 if platform.lower() in ['instagram', 'twitter', 'youtube'] else 6
+            time.sleep(wait_time)
             
-            # Aguarda um pouco mais para renderização completa
-            time.sleep(2)
+            # Tenta capturar elemento específico do post
+            screenshot_data = None
+            try:
+                if platform.lower() == 'instagram':
+                    post_element = WebDriverWait(self.driver, self.wait_timeout).until(
+                        EC.presence_of_element_located((By.TAG_NAME, "article"))
+                    )
+                    screenshot_data = post_element.screenshot_as_png
+                elif platform.lower() == 'twitter':
+                    post_element = WebDriverWait(self.driver, self.wait_timeout).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='tweet']"))
+                    )
+                    screenshot_data = post_element.screenshot_as_png
+                elif platform.lower() == 'youtube':
+                    post_element = WebDriverWait(self.driver, self.wait_timeout).until(
+                        EC.presence_of_element_located((By.ID, "player-container"))
+                    )
+                    screenshot_data = post_element.screenshot_as_png
+                else:
+                    screenshot_data = self.driver.get_screenshot_as_png()
+                
+            except (TimeoutException, WebDriverException) as e:
+                logger.warning(f"⚠️ Elemento específico não encontrado para {platform}. Capturando página inteira.")
+                screenshot_data = self.driver.get_screenshot_as_png()
+            
+            # Salva screenshot
+            filename = f"{platform}_post_{index:03d}.png"
+            filepath = session_dir / filename
+            
+            with open(filepath, 'wb') as f:
+                f.write(screenshot_data)
+            
+            # Otimiza imagem
+            self._optimize_screenshot(str(filepath))
             
             # Captura informações da página
             page_title = self.driver.title or "Sem título"
             page_url = self.driver.current_url
             
-            # Tenta obter meta description
-            meta_description = ""
-            try:
-                meta_element = self.driver.find_element(By.CSS_SELECTOR, 'meta[name="description"]')
-                meta_description = meta_element.get_attribute("content") or ""
-            except:
-                pass
+            logger.info(f"✅ Screenshot {platform} salvo: {filepath}")
             
-            # Define o caminho do arquivo
-            screenshot_path = session_dir / f"{filename}.png"
-            
-            # Captura o screenshot
-            self.driver.save_screenshot(str(screenshot_path))
-            
-            # Verifica se o arquivo foi criado
-            if screenshot_path.exists() and screenshot_path.stat().st_size > 0:
-                logger.info(f"✅ Screenshot salvo: {screenshot_path}")
-                
-                return {
-                    'success': True,
-                    'url': url,
-                    'final_url': page_url,
-                    'title': page_title,
-                    'description': meta_description,
-                    'filename': f"{filename}.png",
-                    'filepath': str(screenshot_path),
-                    'filesize': screenshot_path.stat().st_size,
-                    'timestamp': datetime.now().isoformat()
-                }
-            else:
-                raise Exception("Screenshot não foi criado ou está vazio")
+            return {
+                'success': True,
+                'url': url,
+                'final_url': page_url,
+                'title': page_title,
+                'platform': platform,
+                'filename': filename,
+                'filepath': str(filepath),
+                'filesize': filepath.stat().st_size,
+                'timestamp': datetime.now().isoformat()
+            }
                 
         except Exception as e:
-            error_msg = f"Erro ao capturar screenshot de {url}: {e}"
+            error_msg = f"Erro ao capturar {platform} post de {url}: {e}"
             logger.error(f"❌ {error_msg}")
             
             return {
                 'success': False,
                 'url': url,
+                'platform': platform,
                 'error': error_msg,
                 'timestamp': datetime.now().isoformat()
             }
 
-    async def capture_screenshots(self, urls: List[str], session_id: str) -> Dict[str, Any]:
+    async def capture_viral_posts_screenshots(self, social_media_data: Dict[str, Any], session_id: str) -> Dict[str, Any]:
         """
-        Captura screenshots de uma lista de URLs
+        Captura screenshots dos posts com maior conversão/engajamento
         
         Args:
-            urls: Lista de URLs para capturar
+            social_media_data: Dados das redes sociais com posts ranqueados
             session_id: ID da sessão para organização
         """
-        logger.info(f"📸 Iniciando captura de {len(urls)} screenshots para sessão {session_id}")
+        logger.info(f"📸 Iniciando captura de posts virais para sessão {session_id}")
         
         # Resultado da operação
         capture_results = {
             'session_id': session_id,
-            'total_urls': len(urls),
-            'successful_captures': 0,
+            'total_posts_analyzed': 0,
+            'screenshots_captured': 0,
             'failed_captures': 0,
-            'screenshots': [],
+            'viral_posts': [],
             'errors': [],
             'start_time': datetime.now().isoformat(),
             'session_directory': None
@@ -199,33 +220,43 @@ class VisualContentCapture:
             # Configura o driver
             self.driver = self._setup_driver()
             
-            # Processa cada URL
-            for i, url in enumerate(urls, 1):
-                if not url or not url.startswith(('http://', 'https://')):
-                    logger.warning(f"⚠️ URL inválida ignorada: {url}")
-                    capture_results['failed_captures'] += 1
-                    capture_results['errors'].append(f"URL inválida: {url}")
-                    continue
-                
+            # Identifica posts com maior engajamento de cada plataforma
+            viral_posts = self._identify_viral_posts(social_media_data)
+            capture_results['total_posts_analyzed'] = len(viral_posts)
+            
+            # Captura screenshots dos posts virais
+            for i, post_data in enumerate(viral_posts, 1):
                 try:
-                    # Gera nome do arquivo
-                    filename = f"screenshot_{i:03d}"
+                    url = post_data.get('url')
+                    platform = post_data.get('platform', 'unknown')
+                    
+                    if not url or not url.startswith(('http://', 'https://')):
+                        logger.warning(f"⚠️ URL inválida ignorada: {url}")
+                        capture_results['failed_captures'] += 1
+                        capture_results['errors'].append(f"URL inválida: {url}")
+                        continue
                     
                     # Captura o screenshot
-                    result = self._take_screenshot(url, filename, session_dir)
+                    result = self._capture_social_media_post(url, platform, session_dir, i)
                     
                     if result['success']:
-                        capture_results['successful_captures'] += 1
-                        capture_results['screenshots'].append(result)
+                        result.update({
+                            'engagement_score': post_data.get('engagement_score', 0),
+                            'views': post_data.get('views', 0),
+                            'likes': post_data.get('likes', 0),
+                            'shares': post_data.get('shares', 0)
+                        })
+                        capture_results['screenshots_captured'] += 1
+                        capture_results['viral_posts'].append(result)
                     else:
                         capture_results['failed_captures'] += 1
                         capture_results['errors'].append(result['error'])
                     
-                    # Pequena pausa entre capturas para não sobrecarregar
-                    await asyncio.sleep(1)
+                    # Pausa entre capturas
+                    await asyncio.sleep(2)
                     
                 except Exception as e:
-                    error_msg = f"Erro processando URL {url}: {e}"
+                    error_msg = f"Erro processando post viral {i}: {e}"
                     logger.error(f"❌ {error_msg}")
                     capture_results['failed_captures'] += 1
                     capture_results['errors'].append(error_msg)
@@ -233,10 +264,10 @@ class VisualContentCapture:
             # Finaliza a captura
             capture_results['end_time'] = datetime.now().isoformat()
             
-            logger.info(f"✅ Captura concluída: {capture_results['successful_captures']}/{capture_results['total_urls']} sucessos")
+            logger.info(f"✅ Captura de posts virais concluída: {capture_results['screenshots_captured']}/{capture_results['total_posts_analyzed']} sucessos")
             
         except Exception as e:
-            error_msg = f"Erro crítico na captura: {e}"
+            error_msg = f"Erro crítico na captura de posts virais: {e}"
             logger.error(f"❌ {error_msg}")
             capture_results['critical_error'] = error_msg
             
@@ -252,52 +283,85 @@ class VisualContentCapture:
         
         return capture_results
 
-    def select_top_urls(self, all_results: Dict[str, Any], max_urls: int = 10) -> List[str]:
-        """
-        Seleciona as URLs mais relevantes dos resultados de busca
+    def _identify_viral_posts(self, social_media_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Identifica os posts com maior engajamento/conversão"""
+        viral_posts = []
         
-        Args:
-            all_results: Resultados consolidados de todas as buscas
-            max_urls: Número máximo de URLs para retornar
-        """
-        logger.info(f"🎯 Selecionando top {max_urls} URLs mais relevantes")
-        
-        all_urls = all_results.get('consolidated_urls', [])
-        
-        if not all_urls:
-            logger.warning("⚠️ Nenhuma URL encontrada nos resultados")
-            return []
-        
-        # Por enquanto, retorna as primeiras URLs únicas
-        # Em uma implementação mais sofisticada, poderia ranquear por relevância
-        unique_urls = []
-        seen_domains = set()
-        
-        for url in all_urls:
-            try:
-                # Extrai domínio para diversificar
-                from urllib.parse import urlparse
-                domain = urlparse(url).netloc.lower()
+        try:
+            # Processa cada plataforma
+            for platform_name in ['youtube', 'twitter', 'instagram', 'linkedin']:
+                platform_data = social_media_data.get(platform_name, {})
+                posts = platform_data.get('results', [])
                 
-                # Adiciona URL se for de domínio novo ou se ainda não temos URLs suficientes
-                if domain not in seen_domains or len(unique_urls) < max_urls // 2:
-                    unique_urls.append(url)
-                    seen_domains.add(domain)
-                    
-                    if len(unique_urls) >= max_urls:
-                        break
-                        
-            except Exception as e:
-                logger.warning(f"⚠️ Erro processando URL {url}: {e}")
-                continue
+                if not posts:
+                    continue
+                
+                # Calcula score de engajamento para cada post
+                scored_posts = []
+                for post in posts:
+                    engagement_score = self._calculate_engagement_score(post, platform_name)
+                    if engagement_score > 0:
+                        post_data = {
+                            'url': post.get('url', ''),
+                            'platform': platform_name,
+                            'engagement_score': engagement_score,
+                            'title': post.get('title', post.get('text', post.get('caption', ''))),
+                            'views': post.get('view_count', post.get('like_count', 0)),
+                            'likes': post.get('like_count', 0),
+                            'shares': post.get('retweet_count', post.get('shares', 0))
+                        }
+                        scored_posts.append(post_data)
+                
+                # Ordena por engajamento e pega os top 3 de cada plataforma
+                scored_posts.sort(key=lambda x: x['engagement_score'], reverse=True)
+                viral_posts.extend(scored_posts[:3])
+            
+            # Ordena todos os posts por engajamento e pega os top 10 globais
+            viral_posts.sort(key=lambda x: x['engagement_score'], reverse=True)
+            viral_posts = viral_posts[:10]
+            
+            logger.info(f"🎯 Identificados {len(viral_posts)} posts virais para captura")
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao identificar posts virais: {e}")
         
-        logger.info(f"✅ Selecionadas {len(unique_urls)} URLs de {len(seen_domains)} domínios diferentes")
-        return unique_urls
+        return viral_posts
+
+    def _calculate_engagement_score(self, post: Dict[str, Any], platform: str) -> float:
+        """Calcula score de engajamento baseado na plataforma"""
+        try:
+            if platform == 'youtube':
+                views = int(str(post.get('view_count', 0)).replace(',', ''))
+                likes = post.get('like_count', 0)
+                comments = post.get('comment_count', 0)
+                return (likes * 2 + comments * 3) / max(views, 1) * 1000
+                
+            elif platform == 'twitter':
+                likes = post.get('like_count', 0)
+                retweets = post.get('retweet_count', 0)
+                replies = post.get('reply_count', 0)
+                return likes + (retweets * 3) + (replies * 2)
+                
+            elif platform == 'instagram':
+                likes = post.get('like_count', 0)
+                comments = post.get('comment_count', 0)
+                return likes + (comments * 5)
+                
+            elif platform == 'linkedin':
+                likes = post.get('likes', 0)
+                comments = post.get('comments', 0)
+                shares = post.get('shares', 0)
+                return likes + (comments * 3) + (shares * 5)
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao calcular engajamento: {e}")
+        
+        return 0
 
     def cleanup_old_screenshots(self, days_old: int = 7):
         """Remove screenshots antigos para economizar espaço"""
         try:
-            files_dir = Path("analyses_data") / "files"
+            files_dir = Path(self.screenshots_base_dir)
             if not files_dir.exists():
                 return
             
@@ -325,3 +389,4 @@ class VisualContentCapture:
 
 # Instância global
 visual_content_capture = VisualContentCapture()
+

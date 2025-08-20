@@ -51,7 +51,25 @@ class EnhancedAIManager:
     def _initialize_providers(self):
         """Inicializa todos os provedores de IA"""
 
-        # Gemini (Prioridade 1 - mais confiável)
+        # OpenRouter (Prioridade 0 - primário)
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if api_key:
+            try:
+                self.providers["openrouter"] = {
+                    "client": openai.OpenAI(
+                        api_key=api_key,
+                        base_url="https://openrouter.ai/api/v1"
+                    ),
+                    "model": "qwen/qwen2.5-vl-32b-instruct:free",
+                    "available": True,
+                    "supports_tools": True,
+                    "priority": 0
+                }
+                logger.info("✅ OpenRouter Qwen configurado como primário")
+            except Exception as e:
+                logger.error(f"❌ Erro ao configurar OpenRouter: {e}")
+
+        # Gemini (Prioridade 1 - secundário)
         if HAS_GEMINI:
             api_key = os.getenv("GEMINI_API_KEY")
             if api_key:
@@ -64,7 +82,7 @@ class EnhancedAIManager:
                         "supports_tools": True,
                         "priority": 1
                     }
-                    logger.info("✅ Gemini 2.0 Flash configurado")
+                    logger.info("✅ Gemini 2.0 Flash configurado como secundário")
                 except Exception as e:
                     logger.error(f"❌ Erro ao configurar Gemini: {e}")
 
@@ -75,7 +93,7 @@ class EnhancedAIManager:
                 try:
                     self.providers["groq"] = {
                         "client": Groq(api_key=api_key),
-                        "model": "llama-3.1-70b-versatile",
+                        "model": "llama3-8b-8192",
                         "available": True,
                         "supports_tools": False,
                         "priority": 2
@@ -174,16 +192,29 @@ IMPORTANTE: Gere uma análise completa mesmo sem ferramentas de busca, baseando-
             # Executa geração com ferramentas
             if provider_name == "gemini":
                 return await self._generate_gemini_with_tools(enhanced_prompt, max_search_iterations, session_id)
-            elif provider_name == "openai":
-                return await self._generate_openai_with_tools(enhanced_prompt, max_search_iterations, session_id)
+            elif provider_name in ["openai", "openrouter"]:
+                return await self._generate_openai_compatible_with_tools(enhanced_prompt, max_search_iterations, session_id, provider_name)
             else:
                 return await self.generate_text(enhanced_prompt)
         except Exception as e:
             logger.error(f"❌ Erro com {provider_name}: {e}")
-            # Fallback para geração simples com Groq
-            logger.info("🔄 Usando fallback para Groq")
-            return await self.generate_text(enhanced_prompt)
-
+            # Fallback para geração simples com Groq ou outro disponível
+            logger.info("🔄 Usando fallback para outro provedor")
+            # Tenta encontrar o próximo melhor provedor sem ferramentas ou com ferramentas se disponível
+            fallback_provider_name = self._get_best_provider(require_tools=False) # Tenta sem ferramentas primeiro
+            if not fallback_provider_name or fallback_provider_name == provider_name: # Se não encontrar ou for o mesmo, tenta com ferramentas
+                fallback_provider_name = self._get_best_provider(require_tools=True)
+            
+            if fallback_provider_name and fallback_provider_name != provider_name:
+                logger.info(f"🔄 Fallback para {fallback_provider_name}")
+                if fallback_provider_name == "gemini":
+                    return await self._generate_gemini_with_tools(enhanced_prompt, max_search_iterations, session_id)
+                elif fallback_provider_name in ["openai", "openrouter"]:
+                    return await self._generate_openai_compatible_with_tools(enhanced_prompt, max_search_iterations, session_id, fallback_provider_name)
+                else:
+                    return await self.generate_text(enhanced_prompt)
+            else:
+                return await self.generate_text(enhanced_prompt) # Último recurso, sem ferramentas ou fallback
     async def _generate_gemini_with_tools(
         self,
         prompt: str,
@@ -276,16 +307,18 @@ IMPORTANTE: Gere uma análise completa mesmo sem ferramentas de busca, baseando-
             logger.error(f"❌ Erro no Gemini com ferramentas: {e}")
             raise
 
-    async def _generate_openai_with_tools(
+    async def _generate_openai_compatible_with_tools(
         self,
         prompt: str,
         max_iterations: int,
-        session_id: str = None
+        session_id: str = None,
+        provider_name: str = "openai"
     ) -> str:
-        """Gera com OpenAI usando ferramentas"""
+        """Gera com OpenAI/OpenRouter usando ferramentas"""
 
         try:
-            client = self.providers["openai"]["client"]
+            client = self.providers[provider_name]["client"]
+            model_name = self.providers[provider_name]["model"]
 
             # Define função de busca
             tools = [{
@@ -311,11 +344,11 @@ IMPORTANTE: Gere uma análise completa mesmo sem ferramentas de busca, baseando-
 
             while iteration < max_iterations:
                 iteration += 1
-                logger.info(f"🔄 Iteração OpenAI {iteration}/{max_iterations}")
+                logger.info(f"🔄 Iteração {provider_name} {iteration}/{max_iterations}")
 
                 try:
                     response = client.chat.completions.create(
-                        model=self.providers["openai"]["model"],
+                        model=model_name,
                         messages=messages,
                         tools=tools,
                         tool_choice="auto",
@@ -332,7 +365,7 @@ IMPORTANTE: Gere uma análise completa mesmo sem ferramentas de busca, baseando-
                             args = json.loads(tool_call.function.arguments)
                             search_query = args.get("query", "")
 
-                            logger.info(f"🔍 IA OpenAI solicitou busca: {search_query}")
+                            logger.info(f"🔍 IA {provider_name} solicitou busca: {search_query}")
 
                             # Executa busca real
                             search_results = await self._execute_real_search(search_query, session_id)
@@ -360,31 +393,35 @@ IMPORTANTE: Gere uma análise completa mesmo sem ferramentas de busca, baseando-
 
                     # Resposta final
                     final_response = message.content
-                    logger.info(f"✅ OpenAI geração concluída em {iteration} iterações")
+                    logger.info(f"✅ {provider_name} geração concluída em {iteration} iterações")
                     return final_response
 
                 except Exception as e:
                     error_msg = str(e)
                     if "429" in error_msg or "quota" in error_msg.lower() or "insufficient_quota" in error_msg.lower():
-                        logger.error(f"❌ OpenAI quota excedida: {e}")
-                        # Marca OpenAI como indisponível temporariamente
-                        self.providers["openai"]["available"] = False
-                        logger.info("🔄 Marcando OpenAI como indisponível e tentando Groq")
+                        logger.error(f"❌ {provider_name} quota excedida: {e}")
+                        # Marca o provedor como indisponível temporariamente
+                        self.providers[provider_name]["available"] = False
+                        logger.info(f"🔄 Marcando {provider_name} como indisponível e tentando fallback")
 
-                        # Tenta usar Groq como fallback
-                        if "groq" in self.providers and self.providers["groq"]["available"]:
-                            logger.info("🔄 Usando Groq como fallback para OpenAI")
-                            return await self.generate_text(prompt)
+                        # Tenta usar o próximo melhor provedor
+                        fallback_provider_name = self._get_best_provider(require_tools=True)
+                        if fallback_provider_name and fallback_provider_name != provider_name:
+                            logger.info(f"🔄 Usando {fallback_provider_name} como fallback para {provider_name}")
+                            if fallback_provider_name == "gemini":
+                                return await self._generate_gemini_with_tools(prompt, max_iterations, session_id)
+                            else: # Deve ser OpenAI ou OpenRouter
+                                return await self._generate_openai_compatible_with_tools(prompt, max_iterations, session_id, fallback_provider_name)
                         else:
-                            return "OpenAI quota excedida e nenhum provedor alternativo disponível. Por favor, configure uma chave API válida."
+                            return f"{provider_name} quota excedida e nenhum provedor alternativo disponível. Por favor, configure uma chave API válida."
                     else:
-                        logger.error(f"❌ Erro na iteração OpenAI {iteration}: {e}")
+                        logger.error(f"❌ Erro na iteração {provider_name} {iteration}: {e}")
                     break
 
-            return "Análise realizada com OpenAI e busca ativa."
+            return f"Análise realizada com {provider_name} e busca ativa."
 
         except Exception as e:
-            logger.error(f"❌ Erro no OpenAI com ferramentas: {e}")
+            logger.error(f"❌ Erro no {provider_name} com ferramentas: {e}")
             raise
 
     async def _execute_real_search(self, search_query: str, session_id: str = None) -> str:
